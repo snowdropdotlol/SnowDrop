@@ -1,99 +1,44 @@
-# SnowDrop API Documentation
+# SnowDrop API Reference
 
-The SnowDrop API allows for interactions with the Blizzard Engine, orchestrating zero-gas distributions, and managing Frost Scores.
+The SnowDrop API allows developers and high-tier $SDROP holders to programmatically interact with the Blizzard distribution engine and Frost AI scoring system.
 
-## Overview
+## GET /api/v1/drops/status
 
-**Base URL**: `https://api.snowdrop.lol/v1`  
-**Authentication**: Bearer Token required for authenticated endpoints.
+Get the status of a specific token drop.
 
----
-
-## 1. Distribution Engine
-
-### POST /v1/distro/freeze
-
-Initiates the deposit and commit phase for a new token drop.
-
-**Description**: Registers a new targeted token for processing in the Vault. The protocol validates the token's origin, ensuring a minimum USD threshold for liquidation.
-
-**Headers**:
-- `Authorization`: Bearer `<api_key>`
-
-**Parameters (JSON)**:
+**Parameters:**
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `token_address` | string | Yes | The SPL token address assigned |
-| `drop_percentage` | number | Yes | Percentage of supply to drop (e.g., 20.0) |
-| `authorized_wallet`| string | Yes | Developer wallet initiating the freeze |
+| tokenAddress | string | Yes | The Solana address of the token being distributed |
 
-**Response (200 OK)**:
-```json
-{
-  "vault_address": "vAULTx...",
-  "status": "AWAITING_DEPOSIT",
-  "expected_melt_fee": "2.5%",
-  "minimum_deposit_amount": "50_000_000"
-}
-```
+**Response:**
+- 200: Drop status object `{"status": "melting|distributing|completed", "progress": 85}`
+- 404: Drop not found
 
----
+## POST /api/v1/drops/commit
 
-## 2. Intelligence & Scoring
+Initiate a new drop for a Pump.fun token.
 
-### GET /v1/oracle/frost-score
-
-Retrieves the Frost Score of a specific Solana wallet address. Integrating the Frost Oracle API.
-
-**Description**: Fetches the wallet's reliability metrics, filtering out sybil farms, analyzing hold duration, and evaluating cross-project activity.
-
-**Parameters (Query)**:
+**Parameters:**
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `wallet` | string | Yes | The public key string of the user |
-| `depth` | integer| No | The history depth to consider (default 30 days) |
+| tokenAddress | string | Yes | The token to drop |
+| amount | number | Yes | Total amount deposited ($50 USD min) |
+| signature | string | Yes | The transaction signature of the deposit |
 
-**Response (200 OK)**:
-```json
-{
-  "wallet": "7Hkj...K3",
-  "frost_score": 98,
-  "modifiers": {
-    "diamond_hand": true,
-    "sybil_cluster": false,
-    "cross_project_txs": 42
-  },
-  "tier": "STORM"
-}
-```
+**Response:**
+- 201: Drop successfully queued for The Melt and distribution.
+- 400: Invalid deposit or $50 minimum not met.
 
----
+## GET /api/v1/frost/score
 
-## 3. Revenue & Dashboard
+Get the Frost AI score for a specific wallet address. *(Requires Storm or Peak tier holding).*
 
-### GET /v1/stats/global
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| walletAddress | string | Yes | The target Solana wallet address |
 
-Fetches the overarching metrics for the SnowDrop project.
-
-**Description**: Used to populate the Frost Dashboard with real-time volume and protocol participation.
-
-**Response (200 OK)**:
-```json
-{
-  "total_volume_sol": "1240500.00",
-  "projects_frosted": 342,
-  "live_snow_stream": [
-    { "ticker": "UNC", "percentage": 30.0, "status": "FROSTED" },
-    { "ticker": "XYZ", "percentage": null, "status": "MELTING" }
-  ]
-}
-```
-
----
-
-## Errors & Rate Limiting
-
-The API operates under standard HTTP response codes.
-- `400 Bad Request`: Validation failure on the SPL configuration.
-- `401 Unauthorized`: API key is invalid or lacks Tier permission.
-- `429 Too Many Requests`: Standard rate limit of 100 req/min for free tiers, 1000 req/min for STORM tier limits.
+**Response:**
+- 200: Frost Score object `{"score": 92, "sybilProbability": 0.01}`
+- 403: Unauthorized (tier too low)
